@@ -33,6 +33,34 @@ Rows that cannot be converted are marked with `Convert_Status = No` in the outpu
    pip install pandas
    ```
 
+## Adding Python to PATH
+
+### Windows
+1. During Python installation, check the box that says **Add Python to PATH**.
+2. If Python is already installed:
+   - Open **Control Panel > System > Advanced system settings > Environment Variables**.
+   - Under **System variables**, find and select `Path`, then click **Edit**.
+   - Click **New** and add the path to your Python installation (e.g., `C:\Users\YourName\AppData\Local\Programs\Python\Python38`).
+   - Click **OK** to save.
+   - Restart your command prompt.
+
+### Linux
+1. Open your terminal.
+2. Add Python to your PATH by editing your shell profile (e.g., `.bashrc`, `.zshrc`):
+   ```sh
+   export PATH="$PATH:/usr/local/bin/python3"
+   ```
+3. Save the file and run:
+   ```sh
+   source ~/.bashrc
+   ```
+   (or the appropriate profile file for your shell)
+
+4. Verify Python is on your PATH:
+   ```sh
+   python --version
+   ```
+
 ## How to Use Converta
 1. Double-click `converta.bat` (included) or run:
    ```sh

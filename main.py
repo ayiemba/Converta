@@ -216,36 +216,3 @@ close_btn = tk.Button(main_frame, text='Close', command=close_app, width=15)
 close_btn.grid(row=4, column=2, pady=18, padx=5, sticky='w')
 
 root.mainloop()
-
-# === MAIN PROCESS ===
-def convert_excel_coordinates(input_file, output_file, lat_column='Latitude', lon_column='Longitude'):
-    """
-    Reads an Excel file, converts latitude and longitude coordinates to Decimal Degrees (DD),
-    and saves the results to a new Excel file.
-
-    Args:
-        input_file (str): Path to the input Excel file.
-        output_file (str): Path to save the output Excel file.
-        lat_column (str): Name of the column containing latitude coordinates. Default is 'Latitude'.
-        lon_column (str): Name of the column containing longitude coordinates. Default is 'Longitude'.
-
-    Returns:
-        None
-    """
-    # Read the Excel file
-    df = pd.read_excel(input_file)
-
-    # Apply conversion
-    df['Latitude_DD'] = df[lat_column].apply(parse_coordinate)
-    df['Longitude_DD'] = df[lon_column].apply(parse_coordinate)
-
-    # Save to new Excel file
-    df.to_excel(output_file, index=False)
-    print(f"Converted coordinates saved to: {output_file}")
-
-# === USAGE ===
-if __name__ == "__main__":
-    # Replace with your file name
-    input_excel = "activities.xlsx"
-    output_excel = "coordinates_converted.xlsx"
-    convert_excel_coordinates(input_excel, output_excel)
