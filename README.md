@@ -1,6 +1,6 @@
 # Converta
 
-Converta is a user-friendly Windows application for converting geographic coordinates in Excel files. It helps you quickly transform various coordinate formats—including files with mixed formats—into decimal degrees, making your data ready for mapping, analysis, or sharing.
+Converta is a user-friendly Windows application for converting geographic coordinates in Excel files. It helps you quickly transform various coordinate formats including files with mixed formats into decimal degrees, making your data ready for mapping, analysis, or sharing.
 
 ## What Converta Does
 - **Upload** your Excel file (.xlsx, .xls)
