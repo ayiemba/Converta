@@ -1,63 +1,56 @@
 # Converta
 
-Converta is a simple Windows application for converting coordinates in Excel files. It allows users to upload an Excel file, select the columns containing longitude and latitude, and outputs a new Excel file with converted coordinates in new columns.
+Converta is a user-friendly Windows application for converting geographic coordinates in Excel files. It helps you quickly transform various coordinate formats—including files with mixed formats—into decimal degrees, making your data ready for mapping, analysis, or sharing.
 
-## Features
-- Upload Excel files (.xlsx, .xls)
-- Autodetect and select coordinate columns
-- Converts coordinates to decimal degrees
-- Outputs new columns: `Longitude_Converted`, `Latitude_Converted`, and `Convert_Status`
-- Date-stamped output file
-- Simple, modern UI with explanatory text and a Close button
+## What Converta Does
+- **Upload** your Excel file (.xlsx, .xls)
+- **Autodetect** longitude and latitude columns (you can adjust if needed)
+- **Convert** coordinates to decimal degrees
+- **Output** a new Excel file with:
+  - `Longitude_Converted`
+  - `Latitude_Converted`
+  - `Convert_Status` ("Yes" if both coordinates converted, "No" otherwise)
+- **Date-stamped** output filename for easy tracking
+- **Modern UI** with clear instructions and a Close button
 
 ## Supported Coordinate Formats
-The conversion logic in Converta can handle the following cases:
+Converta automatically handles:
+- Decimal Degrees: `45.123N`, `-120.456`, `120.456W`
+- Degrees, Minutes, Seconds (DMS): `45°30'15"N`, `120°30'15"W`
+- Degrees and Minutes: `45°30'N`, `120°30'W`
+- Plain numbers: `45.123`, `-120.456`
 
-- **Decimal Degrees**: e.g., `45.123N`, `-120.456`, `120.456W`
-- **Degrees, Minutes, Seconds (DMS)**: e.g., `45°30'15"N`, `120°30'15"W`
-- **Degrees and Minutes**: e.g., `45°30'N`, `120°30'W`
-- **Plain numbers**: e.g., `45.123`, `-120.456`
-
-Rows that cannot be converted will be marked in the output with `Convert_Status = No`.
+Rows that cannot be converted are marked with `Convert_Status = No` in the output.
 
 ## Requirements
 - Python 3.8 or newer
 - pandas
 
-## Installation
-1. Install Python from [python.org](https://www.python.org/downloads/).
-2. Install pandas:
+## Setup
+1. [Download Python](https://www.python.org/downloads/)
+2. Open a command prompt and run:
    ```sh
    pip install pandas
    ```
 
-## How to Run
-1. Double-click the batch file `converta.bat` (see below) or run the following command in your terminal:
+## How to Use Converta
+1. Double-click `converta.bat` (included) or run:
    ```sh
    python main.py
    ```
+2. In the app:
+   - Click **Browse** to select your Excel file
+   - Confirm or adjust the detected coordinate columns
+   - Review the supported formats in the UI
+   - Click **Convert**
+   - Find your converted file in the same folder, with a date-stamped name
+   - Click **Close** to exit
 
-## Windows Batch File
-A file named `converta.bat` is included. Double-click it to launch the Converta application.
-
-```bat
-@echo off
-python main.py
-```
-
-## Usage
-1. Click **Browse** to select your Excel file.
-2. The app will autodetect and select the most likely longitude and latitude columns. You can change these if needed.
-3. Review the explanatory text at the top for supported formats.
-4. Click **Convert** to process the file. The converted file will be saved in the same folder with a date-stamped name.
-5. Click **Close** to exit the application.
-
-## Output
-- The converted Excel file will have three new columns:
-  - `Longitude_Converted`
-  - `Latitude_Converted`
-  - `Convert_Status`: Shows `Yes` if both coordinates were successfully converted, `No` if either could not be converted.
-- The filename will include a date stamp, e.g., `yourfile_converted_20250811.xlsx`.
+## Output Example
+Your converted Excel file will include:
+- `Longitude_Converted` and `Latitude_Converted` columns (decimal degrees)
+- `Convert_Status` column ("Yes" or "No")
+- Filename like `yourfile_converted_20250811.xlsx`
 
 ## License
 MIT
