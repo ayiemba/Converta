@@ -74,11 +74,5 @@ Rows that cannot be converted are marked with `Convert_Status = No` in the outpu
    - Find your converted file in the same folder, with a date-stamped name
    - Click **Close** to exit
 
-## Output
-Your converted Excel file will include:
-- `Longitude_Converted` and `Latitude_Converted` columns (decimal degrees)
-- `Convert_Status` column ("Yes" or "No")
-- Filename like `yourfile_converted_20250811.xlsx`
-
 ## License
 MIT
