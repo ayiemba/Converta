@@ -172,7 +172,7 @@ def center_window(window, width=400, height=180):
 
 root = tk.Tk()
 root.title('Excel Coordinate Converter')
-center_window(root, 540, 260)
+center_window(root, 540, 300)
 
 main_frame = tk.Frame(root, padx=20, pady=20)
 main_frame.pack(fill='both', expand=True)
