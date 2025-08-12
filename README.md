@@ -2,7 +2,7 @@
 
 ![Vibe Coded](https://img.shields.io/badge/vibe-coded-blueviolet?style=for-the-badge)
 
-Ever struggled with Excel files containing longitude and latitude values in every format imaginable? Converta is a user-friendly, minimal tool that effortlessly transforms mixed coordinate formats into decimal degrees—making your data instantly ready for mapping, analysis, or sharing.
+Ever struggled with Excel files containing longitude and latitude values in every format imaginable? Converta is a user-friendly, minimal tool that effortlessly transforms mixed coordinate formats into decimal degrees, making your data instantly ready for mapping, analysis, or sharing.
 
 ![Converta UI Screenshot](converta.png)
 
