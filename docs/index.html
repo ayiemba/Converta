@@ -63,6 +63,16 @@
             margin: 0.6rem 0 0;
             color: #47506d;
         }
+        #sheetSelectWrap {
+            display: none;
+            margin-top: 1.6rem;
+        }
+        #sheetSelectWrap label {
+            font-weight: 600;
+            color: #2a3a60;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
         input[type="file"] {
             display: none;
         }
@@ -201,17 +211,22 @@
             <p id="fileName">No file selected</p>
         </div>
 
-    <div class="grid" id="selectionPanel">
+        <div id="sheetSelectWrap">
+            <label for="sheetSelect">2. Worksheet tab</label>
+            <select id="sheetSelect"></select>
+        </div>
+
+        <div class="grid" id="selectionPanel">
             <div>
-                <label for="longitudeSelect">2. Longitude / X column</label>
+                <label for="longitudeSelect">3. Longitude / X column</label>
                 <select id="longitudeSelect"></select>
             </div>
             <div>
-                <label for="latitudeSelect">3. Latitude / Y column</label>
+                <label for="latitudeSelect">4. Latitude / Y column</label>
                 <select id="latitudeSelect"></select>
             </div>
             <div>
-                <label for="skipRowsInput">Optional: Rows to skip at top</label>
+                <label for="skipRowsInput">Optional: rows to skip at the top</label>
                 <input type="number" id="skipRowsInput" min="0" value="0" />
             </div>
         </div>
@@ -232,16 +247,19 @@
         const dropzone = document.getElementById('dropzone');
         const longitudeSelect = document.getElementById('longitudeSelect');
         const latitudeSelect = document.getElementById('latitudeSelect');
-    const selectionPanel = document.getElementById('selectionPanel');
-    const skipRowsInput = document.getElementById('skipRowsInput');
+        const sheetSelect = document.getElementById('sheetSelect');
+        const sheetSelectWrap = document.getElementById('sheetSelectWrap');
+        const selectionPanel = document.getElementById('selectionPanel');
+        const skipRowsInput = document.getElementById('skipRowsInput');
         const convertBtn = document.getElementById('convertBtn');
         const statusMsg = document.getElementById('statusMsg');
 
-    let rawRows = [];
-    let originalSheetName = '';
-    let originalFileName = '';
-    let columnIndexMap = {};
-    let currentSkipCount = 0;
+        let rawRows = [];
+        let originalSheetName = '';
+        let originalFileName = '';
+        let columnIndexMap = {};
+        let currentSkipCount = 0;
+        let loadedWorkbook = null;
 
         browseBtn.addEventListener('click', () => fileInput.click());
 
@@ -278,39 +296,78 @@
             }
             convertBtn.disabled = true;
             selectionPanel.style.display = 'none';
+            sheetSelectWrap.style.display = 'none';
+            sheetSelect.innerHTML = '';
             originalFileName = file.name.replace(/\.[^.]+$/, '');
             fileNameEl.textContent = file.name;
             statusMsg.textContent = 'Reading workbook...';
             const reader = new FileReader();
             reader.onload = (event) => {
                 const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.SheetNames[0];
-                originalSheetName = firstSheet;
-                rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
-                    header: 1,
-                    defval: '',
-                    blankrows: false,
-                });
-                if (!rawRows.length) {
-                    statusMsg.textContent = 'Sheet is empty.';
+                loadedWorkbook = XLSX.read(data, { type: 'array' });
+                if (!loadedWorkbook.SheetNames.length) {
+                    statusMsg.textContent = 'Workbook has no sheets.';
                     convertBtn.disabled = true;
-                    selectionPanel.style.display = 'none';
-                    if (skipRowsInput) {
-                        skipRowsInput.value = '0';
-                    }
                     return;
                 }
-                updateColumnsForSkip();
-                statusMsg.textContent = 'Workbook loaded. Pick your columns and convert!';
-                convertBtn.disabled = false;
+                sheetSelect.innerHTML = '';
+                loadedWorkbook.SheetNames.forEach((sheetName) => {
+                    const option = document.createElement('option');
+                    option.value = sheetName;
+                    option.textContent = sheetName;
+                    sheetSelect.appendChild(option);
+                });
+                sheetSelectWrap.style.display = 'block';
+                const firstSheet = loadedWorkbook.SheetNames[0];
+                sheetSelect.value = firstSheet;
+                loadSheet(firstSheet);
             };
             reader.onerror = () => {
                 statusMsg.textContent = 'Failed to read file.';
                 convertBtn.disabled = true;
                 selectionPanel.style.display = 'none';
+                sheetSelectWrap.style.display = 'none';
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        sheetSelect.addEventListener('change', () => {
+            if (!loadedWorkbook) {
+                return;
+            }
+            loadSheet(sheetSelect.value);
+        });
+
+        function loadSheet(sheetName) {
+            if (!loadedWorkbook || !sheetName) {
+                return;
+            }
+            const worksheet = loadedWorkbook.Sheets[sheetName];
+            if (!worksheet) {
+                statusMsg.textContent = 'Selected worksheet not found.';
+                convertBtn.disabled = true;
+                selectionPanel.style.display = 'none';
+                return;
+            }
+            rawRows = XLSX.utils.sheet_to_json(worksheet, {
+                header: 1,
+                defval: '',
+                blankrows: false,
+            });
+            originalSheetName = sheetName;
+            if (skipRowsInput) {
+                skipRowsInput.value = '0';
+            }
+            currentSkipCount = 0;
+            if (!rawRows.length) {
+                statusMsg.textContent = 'Sheet is empty.';
+                convertBtn.disabled = true;
+                selectionPanel.style.display = 'none';
+                return;
+            }
+            updateColumnsForSkip();
+            statusMsg.textContent = 'Sheet loaded. Pick your columns and convert!';
+            convertBtn.disabled = false;
         }
 
         function updateColumnsForSkip() {
