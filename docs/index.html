@@ -90,6 +90,7 @@
             display: grid;
             gap: 1.2rem;
             margin-top: 1.6rem;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         }
         label {
             font-weight: 600;
@@ -104,6 +105,31 @@
             border: 1px solid #c8d0f4;
             background: #ffffff;
             font-size: 1rem;
+            color: #1b3767;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 0.7rem;
+            border-radius: 10px;
+            border: 1px solid #c8d0f4;
+            font-size: 1rem;
+            color: #1b3767;
+            background: #ffffff;
+        }
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #6f4cff;
+            box-shadow: 0 0 0 3px rgba(111, 76, 255, 0.18);
+        }
+        .privacy-note {
+            margin-top: 1rem;
+            font-size: 0.95rem;
+            color: #2e3b55;
+            background: rgba(53, 167, 255, 0.12);
+            border-left: 4px solid #6f4cff;
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
         }
         .info {
             background: rgba(255, 255, 255, 0.7);
@@ -127,6 +153,17 @@
             font-size: 0.9rem;
             color: #6173a7;
             text-align: center;
+        }
+        .footer a {
+            color: #6f4cff;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        #selectionPanel {
+            display: none;
         }
         @media (max-width: 640px) {
             body { padding: 1.4rem; }
@@ -153,6 +190,10 @@
             Rows that fail to convert are flagged in <code>Convert_Status</code>.
         </div>
 
+        <p class="privacy-note">
+            Everything happens in your browser. Files never leave your device&mdash;perfect when you need a quick, private clean-up.
+        </p>
+
         <label for="fileInput">1. Upload your Excel file</label>
         <div class="dropzone" id="dropzone">
             <button class="btn" id="browseBtn">Choose File</button>
@@ -160,7 +201,7 @@
             <p id="fileName">No file selected</p>
         </div>
 
-        <div class="grid" id="selectionPanel" style="display: none;">
+    <div class="grid" id="selectionPanel">
             <div>
                 <label for="longitudeSelect">2. Longitude / X column</label>
                 <select id="longitudeSelect"></select>
@@ -169,13 +210,18 @@
                 <label for="latitudeSelect">3. Latitude / Y column</label>
                 <select id="latitudeSelect"></select>
             </div>
+            <div>
+                <label for="skipRowsInput">Optional: Rows to skip at top</label>
+                <input type="number" id="skipRowsInput" min="0" value="0" />
+            </div>
         </div>
 
         <button class="btn" id="convertBtn" disabled>Convert &amp; Download</button>
         <div class="status" id="statusMsg"></div>
 
         <div class="footer">
-            Converted file will use the original name with a date stamp &mdash; perfect for versioning on GitHub Pages.
+            Converted file will use the original name with a date stamp &mdash; perfect for versioning on GitHub Pages.<br />
+            <a href="https://github.com/ayiemba/Converta" target="_blank" rel="noopener noreferrer">View the source on GitHub</a>
         </div>
     </div>
 
@@ -186,7 +232,8 @@
         const dropzone = document.getElementById('dropzone');
         const longitudeSelect = document.getElementById('longitudeSelect');
         const latitudeSelect = document.getElementById('latitudeSelect');
-        const selectionPanel = document.getElementById('selectionPanel');
+    const selectionPanel = document.getElementById('selectionPanel');
+    const skipRowsInput = document.getElementById('skipRowsInput');
         const convertBtn = document.getElementById('convertBtn');
         const statusMsg = document.getElementById('statusMsg');
 
@@ -218,6 +265,8 @@
             if (!file) {
                 return;
             }
+            convertBtn.disabled = true;
+            selectionPanel.style.display = 'none';
             originalFileName = file.name.replace(/\.[^.]+$/, '');
             fileNameEl.textContent = file.name;
             statusMsg.textContent = 'Reading workbook...';
@@ -232,6 +281,9 @@
                     statusMsg.textContent = 'Sheet is empty.';
                     convertBtn.disabled = true;
                     selectionPanel.style.display = 'none';
+                    if (skipRowsInput) {
+                        skipRowsInput.value = '0';
+                    }
                     return;
                 }
                 populateColumns(Object.keys(workbookData[0]));
@@ -240,6 +292,8 @@
             };
             reader.onerror = () => {
                 statusMsg.textContent = 'Failed to read file.';
+                convertBtn.disabled = true;
+                selectionPanel.style.display = 'none';
             };
             reader.readAsArrayBuffer(file);
         }
@@ -252,6 +306,9 @@
             fillSelect(longitudeSelect, columnStrings, longitudeGuess);
             fillSelect(latitudeSelect, columnStrings, latitudeGuess);
 
+            if (skipRowsInput) {
+                skipRowsInput.value = '0';
+            }
             selectionPanel.style.display = 'grid';
         }
 
@@ -363,7 +420,17 @@
                 return;
             }
 
-            const converted = workbookData.map((row) => {
+            const skipCount = Math.max(0, parseInt(skipRowsInput && skipRowsInput.value, 10) || 0);
+
+            const converted = workbookData.map((row, index) => {
+                if (index < skipCount) {
+                    return {
+                        ...row,
+                        Longitude_Converted: '',
+                        Latitude_Converted: '',
+                        Convert_Status: 'Skipped',
+                    };
+                }
                 const lonRaw = row[lonCol];
                 const latRaw = row[latCol];
                 const lonDecimal = parseCoordinate(lonRaw);
