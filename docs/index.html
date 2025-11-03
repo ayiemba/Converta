@@ -237,9 +237,11 @@
         const convertBtn = document.getElementById('convertBtn');
         const statusMsg = document.getElementById('statusMsg');
 
-        let workbookData = null;
-        let originalSheetName = '';
-        let originalFileName = '';
+    let rawRows = [];
+    let originalSheetName = '';
+    let originalFileName = '';
+    let columnIndexMap = {};
+    let currentSkipCount = 0;
 
         browseBtn.addEventListener('click', () => fileInput.click());
 
@@ -259,6 +261,15 @@
         });
 
         convertBtn.addEventListener('click', convertWorkbook);
+        if (skipRowsInput) {
+            skipRowsInput.addEventListener('input', () => {
+                if (!rawRows.length) {
+                    return;
+                }
+                updateColumnsForSkip();
+                statusMsg.textContent = `Using row ${currentSkipCount + 1} as the header.`;
+            });
+        }
 
         function handleFile() {
             const file = fileInput.files[0];
@@ -276,8 +287,12 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheet = workbook.SheetNames[0];
                 originalSheetName = firstSheet;
-                workbookData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
-                if (!workbookData.length) {
+                rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
+                    header: 1,
+                    defval: '',
+                    blankrows: false,
+                });
+                if (!rawRows.length) {
                     statusMsg.textContent = 'Sheet is empty.';
                     convertBtn.disabled = true;
                     selectionPanel.style.display = 'none';
@@ -286,7 +301,7 @@
                     }
                     return;
                 }
-                populateColumns(Object.keys(workbookData[0]));
+                updateColumnsForSkip();
                 statusMsg.textContent = 'Workbook loaded. Pick your columns and convert!';
                 convertBtn.disabled = false;
             };
@@ -298,39 +313,85 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function populateColumns(columns) {
-            const columnStrings = columns.map((col) => (col != null ? String(col) : ''));
-            const longitudeGuess = detectColumn(columnStrings, ['lon', 'lng', 'long', 'x']);
-            const latitudeGuess = detectColumn(columnStrings, ['lat', 'latitude', 'y']);
-
-            fillSelect(longitudeSelect, columnStrings, longitudeGuess);
-            fillSelect(latitudeSelect, columnStrings, latitudeGuess);
-
-            if (skipRowsInput) {
-                skipRowsInput.value = '0';
+        function updateColumnsForSkip() {
+            if (!rawRows.length) {
+                return;
             }
+            const requestedSkip = skipRowsInput ? parseInt(skipRowsInput.value, 10) || 0 : 0;
+            const maxSkip = Math.max(rawRows.length - 1, 0);
+            const boundedSkip = Math.min(Math.max(requestedSkip, 0), maxSkip);
+            if (skipRowsInput && requestedSkip !== boundedSkip) {
+                skipRowsInput.value = String(boundedSkip);
+            }
+            currentSkipCount = boundedSkip;
+
+            const headerRow = rawRows[currentSkipCount] ? [...rawRows[currentSkipCount]] : [];
+            const fallbackLength = rawRows.reduce((max, row) => Math.max(max, row.length), 0);
+            const baseLength = headerRow.length || fallbackLength;
+
+            const columns = [];
+            columnIndexMap = {};
+            for (let idx = 0; idx < baseLength; idx += 1) {
+                const rawValue = headerRow[idx] !== undefined ? headerRow[idx] : '';
+                const trimmed = String(rawValue ?? '').trim();
+                let name = trimmed || `Column ${idx + 1}`;
+                let uniqueName = name;
+                let counter = 2;
+                while (Object.prototype.hasOwnProperty.call(columnIndexMap, uniqueName)) {
+                    uniqueName = `${name} (${counter})`;
+                    counter += 1;
+                }
+                columnIndexMap[uniqueName] = idx;
+                columns.push(uniqueName);
+            }
+
+            if (!columns.length) {
+                longitudeSelect.innerHTML = '';
+                latitudeSelect.innerHTML = '';
+                convertBtn.disabled = true;
+                selectionPanel.style.display = 'none';
+                statusMsg.textContent = 'No columns found in selected header row.';
+                return;
+            }
+
+            const lonGuess = guessColumn(columns, ['lon', 'lng', 'long', 'x']);
+            const latGuess = guessColumn(columns, ['lat', 'latitude', 'y']);
+
+            const previousLon = longitudeSelect.value;
+            const previousLat = latitudeSelect.value;
+
+            fillSelect(longitudeSelect, columns, previousLon, lonGuess);
+            fillSelect(latitudeSelect, columns, previousLat, latGuess);
+
             selectionPanel.style.display = 'grid';
+            convertBtn.disabled = false;
+            statusMsg.textContent = `Using row ${currentSkipCount + 1} as the header.`;
         }
 
-        function fillSelect(select, options, defaultValue) {
+        function fillSelect(select, options, preferredValue, guessValue) {
             select.innerHTML = '';
-            options.forEach((optionValue) => {
+            options.forEach((value) => {
                 const option = document.createElement('option');
-                option.value = optionValue;
-                option.textContent = optionValue || '(blank header)';
+                option.value = value;
+                option.textContent = value || '(blank header)';
                 select.appendChild(option);
             });
-            if (defaultValue && options.includes(defaultValue)) {
-                select.value = defaultValue;
+            if (preferredValue && options.includes(preferredValue)) {
+                select.value = preferredValue;
+            } else if (guessValue && options.includes(guessValue)) {
+                select.value = guessValue;
             } else if (options.length) {
                 select.selectedIndex = 0;
             }
+            if (!options.length) {
+                select.selectedIndex = -1;
+            }
         }
 
-        function detectColumn(columns, keywords) {
-            const lowerColumns = columns.map((col) => col.toLowerCase());
+        function guessColumn(columns, keywords) {
+            const lowerColumns = columns.map((value) => value.toLowerCase());
             for (const keyword of keywords) {
-                const index = lowerColumns.findIndex((col) => col.includes(keyword));
+                const index = lowerColumns.findIndex((value) => value.includes(keyword));
                 if (index !== -1) {
                     return columns[index];
                 }
@@ -409,7 +470,8 @@
         }
 
         function convertWorkbook() {
-            if (!workbookData) {
+            if (!rawRows.length) {
+                statusMsg.textContent = 'Load an Excel file first.';
                 return;
             }
 
@@ -420,32 +482,52 @@
                 return;
             }
 
-            const skipCount = Math.max(0, parseInt(skipRowsInput && skipRowsInput.value, 10) || 0);
+            if (!Object.prototype.hasOwnProperty.call(columnIndexMap, lonCol) || !Object.prototype.hasOwnProperty.call(columnIndexMap, latCol)) {
+                statusMsg.textContent = 'Selected columns are not available after applying the skip.';
+                return;
+            }
 
-            const converted = workbookData.map((row, index) => {
-                if (index < skipCount) {
-                    return {
-                        ...row,
-                        Longitude_Converted: '',
-                        Latitude_Converted: '',
-                        Convert_Status: 'Skipped',
-                    };
+            const lonIndex = columnIndexMap[lonCol];
+            const latIndex = columnIndexMap[latCol];
+            const headerIndex = currentSkipCount;
+            const headerRow = rawRows[headerIndex] ? [...rawRows[headerIndex]] : [];
+            const baseLength = Math.max(headerRow.length, lonIndex + 1, latIndex + 1);
+            const lonConvertedIndex = baseLength;
+            const latConvertedIndex = baseLength + 1;
+            const statusIndex = baseLength + 2;
+
+            const output = rawRows.map((row, index) => {
+                const clone = Array.isArray(row) ? [...row] : [];
+                while (clone.length <= statusIndex) {
+                    clone.push('');
                 }
-                const lonRaw = row[lonCol];
-                const latRaw = row[latCol];
+
+                if (index < headerIndex) {
+                    clone[lonConvertedIndex] = '';
+                    clone[latConvertedIndex] = '';
+                    clone[statusIndex] = 'Skipped';
+                    return clone;
+                }
+
+                if (index === headerIndex) {
+                    clone[lonConvertedIndex] = 'Longitude_Converted';
+                    clone[latConvertedIndex] = 'Latitude_Converted';
+                    clone[statusIndex] = 'Convert_Status';
+                    return clone;
+                }
+
+                const lonRaw = clone[lonIndex];
+                const latRaw = clone[latIndex];
                 const lonDecimal = parseCoordinate(lonRaw);
                 const latDecimal = parseCoordinate(latRaw);
-                const status = lonDecimal !== null && latDecimal !== null ? 'Yes' : 'No';
 
-                return {
-                    ...row,
-                    Longitude_Converted: lonDecimal !== null ? Number(lonDecimal.toFixed(6)) : '',
-                    Latitude_Converted: latDecimal !== null ? Number(latDecimal.toFixed(6)) : '',
-                    Convert_Status: status,
-                };
+                clone[lonConvertedIndex] = lonDecimal !== null ? Number(lonDecimal.toFixed(6)) : '';
+                clone[latConvertedIndex] = latDecimal !== null ? Number(latDecimal.toFixed(6)) : '';
+                clone[statusIndex] = lonDecimal !== null && latDecimal !== null ? 'Yes' : 'No';
+                return clone;
             });
 
-            const worksheet = XLSX.utils.json_to_sheet(converted, { skipHeader: false });
+            const worksheet = XLSX.utils.aoa_to_sheet(output);
             const newWorkbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(newWorkbook, worksheet, originalSheetName || 'Converted');
 
