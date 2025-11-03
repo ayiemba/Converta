@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Converta &ndash; Coordinate Cleaner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(160deg, #f4f4ff, #eef7ff);
+        }
+        .card {
+            width: min(760px, 100%);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 18px;
+            padding: 2rem 2.5rem;
+            box-shadow: 0 20px 45px rgba(73, 99, 175, 0.18);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 2.1rem;
+            color: #1b3767;
+        }
+        p.lead {
+            font-size: 1.05rem;
+            color: #3a4a6b;
+            margin-bottom: 1.6rem;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #6f4cff;
+            color: #ffffff;
+            border-radius: 999px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+            margin-bottom: 1.2rem;
+        }
+        .dropzone {
+            border: 2px dashed #6f4cff;
+            border-radius: 14px;
+            padding: 2rem;
+            text-align: center;
+            transition: border-color 0.25s ease, background 0.25s ease;
+            background: rgba(111, 76, 255, 0.06);
+        }
+        .dropzone.dragover {
+            border-color: #35a7ff;
+            background: rgba(53, 167, 255, 0.08);
+        }
+        .dropzone p {
+            margin: 0.6rem 0 0;
+            color: #47506d;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .btn {
+            background: #6f4cff;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px rgba(111, 76, 255, 0.28);
+        }
+        .grid {
+            display: grid;
+            gap: 1.2rem;
+            margin-top: 1.6rem;
+        }
+        label {
+            font-weight: 600;
+            color: #2a3a60;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+        select {
+            width: 100%;
+            padding: 0.7rem;
+            border-radius: 10px;
+            border: 1px solid #c8d0f4;
+            background: #ffffff;
+            font-size: 1rem;
+        }
+        .info {
+            background: rgba(255, 255, 255, 0.7);
+            border-left: 4px solid #35a7ff;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin: 1.8rem 0;
+            color: #2e3b55;
+        }
+        ul {
+            margin: 0.6rem 0 0 1.1rem;
+            color: #465374;
+        }
+        .status {
+            margin-top: 1.5rem;
+            font-weight: 600;
+            color: #1b3767;
+        }
+        .footer {
+            margin-top: 2.2rem;
+            font-size: 0.9rem;
+            color: #6173a7;
+            text-align: center;
+        }
+        @media (max-width: 640px) {
+            body { padding: 1.4rem; }
+            .card { padding: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">Vibe Coded</div>
+        <h1>Converta &ndash; Coordinate Cleaner</h1>
+        <p class="lead">
+            Ever struggled with Excel files containing longitude and latitude values in every format imaginable?
+            Converta transforms mixed coordinate formats into clean decimal degrees&mdash;no install required.
+        </p>
+
+        <div class="info">
+            <strong>Understands your messy inputs:</strong>
+            <ul>
+                <li>Decimal degrees: <code>45.123N</code>, <code>-120.456</code>, <code>120.456W</code></li>
+                <li>DMS and DM: <code>45&deg;30'15"N</code>, <code>120&deg;30'W</code></li>
+                <li>Plain numbers and strings</li>
+            </ul>
+            Rows that fail to convert are flagged in <code>Convert_Status</code>.
+        </div>
+
+        <label for="fileInput">1. Upload your Excel file</label>
+        <div class="dropzone" id="dropzone">
+            <button class="btn" id="browseBtn">Choose File</button>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <p id="fileName">No file selected</p>
+        </div>
+
+        <div class="grid" id="selectionPanel" style="display: none;">
+            <div>
+                <label for="longitudeSelect">2. Longitude / X column</label>
+                <select id="longitudeSelect"></select>
+            </div>
+            <div>
+                <label for="latitudeSelect">3. Latitude / Y column</label>
+                <select id="latitudeSelect"></select>
+            </div>
+        </div>
+
+        <button class="btn" id="convertBtn" disabled>Convert &amp; Download</button>
+        <div class="status" id="statusMsg"></div>
+
+        <div class="footer">
+            Converted file will use the original name with a date stamp &mdash; perfect for versioning on GitHub Pages.
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const browseBtn = document.getElementById('browseBtn');
+        const fileNameEl = document.getElementById('fileName');
+        const dropzone = document.getElementById('dropzone');
+        const longitudeSelect = document.getElementById('longitudeSelect');
+        const latitudeSelect = document.getElementById('latitudeSelect');
+        const selectionPanel = document.getElementById('selectionPanel');
+        const convertBtn = document.getElementById('convertBtn');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let workbookData = null;
+        let originalSheetName = '';
+        let originalFileName = '';
+
+        browseBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', handleFile);
+        dropzone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (event.dataTransfer.files.length) {
+                fileInput.files = event.dataTransfer.files;
+                handleFile();
+            }
+        });
+
+        convertBtn.addEventListener('click', convertWorkbook);
+
+        function handleFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+            originalFileName = file.name.replace(/\.[^.]+$/, '');
+            fileNameEl.textContent = file.name;
+            statusMsg.textContent = 'Reading workbook...';
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.SheetNames[0];
+                originalSheetName = firstSheet;
+                workbookData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+                if (!workbookData.length) {
+                    statusMsg.textContent = 'Sheet is empty.';
+                    convertBtn.disabled = true;
+                    selectionPanel.style.display = 'none';
+                    return;
+                }
+                populateColumns(Object.keys(workbookData[0]));
+                statusMsg.textContent = 'Workbook loaded. Pick your columns and convert!';
+                convertBtn.disabled = false;
+            };
+            reader.onerror = () => {
+                statusMsg.textContent = 'Failed to read file.';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function populateColumns(columns) {
+            const columnStrings = columns.map((col) => (col != null ? String(col) : ''));
+            const longitudeGuess = detectColumn(columnStrings, ['lon', 'lng', 'long', 'x']);
+            const latitudeGuess = detectColumn(columnStrings, ['lat', 'latitude', 'y']);
+
+            fillSelect(longitudeSelect, columnStrings, longitudeGuess);
+            fillSelect(latitudeSelect, columnStrings, latitudeGuess);
+
+            selectionPanel.style.display = 'grid';
+        }
+
+        function fillSelect(select, options, defaultValue) {
+            select.innerHTML = '';
+            options.forEach((optionValue) => {
+                const option = document.createElement('option');
+                option.value = optionValue;
+                option.textContent = optionValue || '(blank header)';
+                select.appendChild(option);
+            });
+            if (defaultValue && options.includes(defaultValue)) {
+                select.value = defaultValue;
+            } else if (options.length) {
+                select.selectedIndex = 0;
+            }
+        }
+
+        function detectColumn(columns, keywords) {
+            const lowerColumns = columns.map((col) => col.toLowerCase());
+            for (const keyword of keywords) {
+                const index = lowerColumns.findIndex((col) => col.includes(keyword));
+                if (index !== -1) {
+                    return columns[index];
+                }
+            }
+            return columns[0] || '';
+        }
+
+        function parseCoordinate(value) {
+            if (value === null || value === undefined) {
+                return null;
+            }
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                return value;
+            }
+
+            const raw = String(value).trim();
+            if (!raw) {
+                return null;
+            }
+
+            const normalized = raw
+                .replace(/[,]/g, '.')
+                .replace(/\s+/g, ' ')
+                .toUpperCase();
+
+            if (/^[+-]?\d+(\.\d+)?$/.test(normalized)) {
+                return parseFloat(normalized);
+            }
+
+            const dmsRegex = /([+-]?\d+(?:\.\d+)?)\s*\u00B0?\s*(\d+(?:\.\d+)?)?'?\s*(\d+(?:\.\d+)?)?"?\s*([NSEW])?/;
+            const match = normalized.match(dmsRegex);
+            if (match) {
+                const deg = parseFloat(match[1]);
+                const min = match[2] ? parseFloat(match[2]) : 0;
+                const sec = match[3] ? parseFloat(match[3]) : 0;
+                const direction = match[4] || '';
+                if (!Number.isFinite(deg) || !Number.isFinite(min) || !Number.isFinite(sec)) {
+                    return null;
+                }
+                let result = Math.abs(deg) + min / 60 + sec / 3600;
+                if (deg < 0) {
+                    result = -result;
+                }
+                if (direction === 'S' || direction === 'W') {
+                    result = -Math.abs(result);
+                }
+                if (direction === 'N' || direction === 'E') {
+                    result = Math.abs(result);
+                }
+                return result;
+            }
+
+            const parts = normalized.match(/([+-]?\d+(?:\.\d+)?)/g);
+            if (parts) {
+                const directionMatch = normalized.match(/[NSEW]/);
+                let deg = parseFloat(parts[0]);
+                let min = parts[1] ? parseFloat(parts[1]) : 0;
+                let sec = parts[2] ? parseFloat(parts[2]) : 0;
+                if (!Number.isFinite(deg)) {
+                    return null;
+                }
+                let result = Math.abs(deg) + min / 60 + sec / 3600;
+                if (deg < 0) {
+                    result = -result;
+                }
+                if (directionMatch && (directionMatch[0] === 'S' || directionMatch[0] === 'W')) {
+                    result = -Math.abs(result);
+                }
+                if (directionMatch && (directionMatch[0] === 'N' || directionMatch[0] === 'E')) {
+                    result = Math.abs(result);
+                }
+                return result;
+            }
+
+            return null;
+        }
+
+        function convertWorkbook() {
+            if (!workbookData) {
+                return;
+            }
+
+            const lonCol = longitudeSelect.value;
+            const latCol = latitudeSelect.value;
+            if (!lonCol || !latCol) {
+                statusMsg.textContent = 'Pick both longitude and latitude columns.';
+                return;
+            }
+
+            const converted = workbookData.map((row) => {
+                const lonRaw = row[lonCol];
+                const latRaw = row[latCol];
+                const lonDecimal = parseCoordinate(lonRaw);
+                const latDecimal = parseCoordinate(latRaw);
+                const status = lonDecimal !== null && latDecimal !== null ? 'Yes' : 'No';
+
+                return {
+                    ...row,
+                    Longitude_Converted: lonDecimal !== null ? Number(lonDecimal.toFixed(6)) : '',
+                    Latitude_Converted: latDecimal !== null ? Number(latDecimal.toFixed(6)) : '',
+                    Convert_Status: status,
+                };
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(converted, { skipHeader: false });
+            const newWorkbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(newWorkbook, worksheet, originalSheetName || 'Converted');
+
+            const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const outputName = (originalFileName || 'converta') + '_converted_' + dateStamp + '.xlsx';
+
+            XLSX.writeFile(newWorkbook, outputName);
+            statusMsg.textContent = 'Done! Downloaded ' + outputName;
+        }
+    </script>
+</body>
+</html>
